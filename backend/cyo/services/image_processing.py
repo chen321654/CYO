@@ -1,12 +1,11 @@
 import numpy as np
-from cyo.utils.chaos import get_p_and_q, get_R_matrix
-from PIL import Image
+from cyo.utils.chaos import get_R_matrix
 
 def encryption(image, key):
     """
     encrypt the image
     
-    :param image: the image will be encrypted
+    :param image: the image will be encrypted, format: numpy
     :param key: 密钥
     """
     if not isinstance(image, np.ndarray):
@@ -83,7 +82,7 @@ def decryption(image, key):
     """
     decrypt the image with key
     
-    :param image: encrypted image
+    :param image: encrypted image, format: numpy
     :param key: chaos key
     """
     if not isinstance(image, np.ndarray):
