@@ -1,5 +1,5 @@
 import pytest
-from cyo.services.image_processing import encryption, decryption
+from cyo.services.chaos_algorithm import encryption, decryption
 from PIL import Image
 import matplotlib.pyplot as plt
 import cv2 as cv
