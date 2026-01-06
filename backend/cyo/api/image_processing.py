@@ -1,12 +1,12 @@
 import numpy as np
-from cyo.utils.chaos import get_p_and_q
+from cyo.utils.chaos import get_p_and_q, get_R_matrix
 from PIL import Image
 
 def encryption(image, key):
     """
     encrypt the image
     
-    :param image: 说明
+    :param image: the image will be encrypted
     :param key: 密钥
     """
     if not isinstance(image, np.ndarray):
@@ -16,24 +16,11 @@ def encryption(image, key):
     I3 = image[:, :, 2].copy()
 
     M, W, _ = image.shape
-
     Sum = M * W
     p1, q1 = key.split(",")
     p1, q1 = np.float32(p1), np.float32(q1)
-    # p1 = 0.5479
-    # q1 = 0.4014
-    p, q = get_p_and_q(Sum, p1, q1)
 
-    S1 = np.floor(np.multiply(256, np.divide(np.add(p, q), 2)))
-    S2 = np.floor(np.multiply(256, p))
-
-    q1 = q[:Sum]
-    q2 = q[Sum: 2*Sum]
-    q3 = q[2*Sum: len(p)]
-
-    RR = np.reshape(q1, (W, M), order='F').T
-    RG = np.reshape(q2, (W, M), order='F').T
-    RB = np.reshape(q3, (W, M), order='F').T
+    RR, RG, RB, p, q = get_R_matrix(W, M, p1, q1)
     t = np.gcd(M, W)
 
     TL = np.zeros(M * 3, dtype=image.dtype)
@@ -45,21 +32,21 @@ def encryption(image, key):
             wj  = int(np.floor(RG[i, j] * W)) + 1
             wy = int(np.floor(RB[i, j] * Min)) + 1
 
-            TH[:wy] = I3[wi, W-wy: W]
-            TH[wy: W+wy] = I1[wi, :]
-            TH[W+wy: 2*W+wy] = I2[wi, :]
-            TH[2*W+wy: W*3] = I3[wi, :W-wy]
-            I1[wi, :] = TH[:W]
-            I2[wi, :] = TH[W: W*2]
-            I3[wi, :] = TH[W*2: W*3]
+            TH[:wy] = I3[wi, W-wy: W].copy()
+            TH[wy: W+wy] = I1[wi, :].copy()
+            TH[W+wy: 2*W+wy] = I2[wi, :].copy()
+            TH[2*W+wy: W*3] = I3[wi, :W-wy].copy()
+            I1[wi, :] = TH[:W].copy()
+            I2[wi, :] = TH[W: W*2].copy()
+            I3[wi, :] = TH[W*2: W*3].copy()
 
-            TL[:wy] = I3[M-wy:M, wj]
-            TL[wy: M+wy] = I1[:, wj]
-            TL[M+wy: 2*M+wy] = I2[:, wj]
-            TL[2*M+wy: M*3] = I3[:M-wy, wj]
-            I1[:, wj] = TL[:M]
-            I2[:, wj] = TL[M: M*2]
-            I3[:, wj] = TL[2*M: M*3]
+            TL[:wy] = I3[M-wy:M, wj].copy()
+            TL[wy: M+wy] = I1[:, wj].copy()
+            TL[M+wy: 2*M+wy] = I2[:, wj].copy()
+            TL[2*M+wy: M*3] = I3[:M-wy, wj].copy()
+            I1[:, wj] = TL[:M].copy()
+            I2[:, wj] = TL[M: M*2].copy()
+            I3[:, wj] = TL[2*M: M*3].copy()
     
     flat_I1 = I1.flatten(order='F')
     flat_I2 = I2.flatten(order='F')
@@ -70,22 +57,20 @@ def encryption(image, key):
     total_len = len(A)
     B = np.zeros(total_len)
     C = np.zeros(total_len)
+    S1 = np.floor(np.multiply(256, np.divide(np.add(p, q), 2)))
+    S2 = np.floor(np.multiply(256, p))
 
     B[-1] = (A[-1] + S1[-1]) % 256
-
     for i in range(total_len - 2, -1, -1):
         B[i] = (B[i+1] + S1[i] + A[i]) % 256
 
     C[0] = (B[0] + S2[0]) % 256
-
     for i in range(1, total_len):
         C[i] = (C[i-1] + B[i] + S2[i]) % 256
 
-    MW = M * W
-
-    I1_new = C[0:MW].reshape((M, W), order='F').astype(np.uint8)
-    I2_new = C[MW:2*MW].reshape((M, W), order='F').astype(np.uint8)
-    I3_new = C[2*MW:].reshape((M, W), order='F').astype(np.uint8)
+    I1_new = C[0:Sum].reshape((M, W), order='F').astype(np.uint8)
+    I2_new = C[Sum:2*Sum].reshape((M, W), order='F').astype(np.uint8)
+    I3_new = C[2*Sum:].reshape((M, W), order='F').astype(np.uint8)
 
     image[:, :, 0] = I1_new
     image[:, :, 1] = I2_new
@@ -93,3 +78,78 @@ def encryption(image, key):
 
     return image
 
+
+def decryption(image, key):
+    """
+    decrypt the image with key
+    
+    :param image: encrypted image
+    :param key: chaos key
+    """
+    if not isinstance(image, np.ndarray):
+        image = np.array(image)
+    I1 = image[:, :, 0].copy()
+    I2 = image[:, :, 1].copy()
+    I3 = image[:, :, 2].copy()
+
+    M, N, _ = image.shape
+    Sum = M * N
+    p1, q1 = key.split(",")
+    p1, q1 = np.float32(p1), np.float32(q1)
+
+    RR, RG, RB, p, q = get_R_matrix(N, M, p1, q1)
+    t = np.gcd(M, N)
+
+    C = np.concatenate([I1.flatten(order='F'), 
+                        I2.flatten(order='F'), 
+                        I3.flatten(order='F')])
+    
+    D = np.zeros_like(C)
+    E = np.zeros_like(C)
+    total_pixels = 3 * M * N
+    S1 = np.floor(np.multiply(256, np.divide(np.add(p, q), 2)))
+    S2 = np.floor(np.multiply(256, p))
+    # --- D Loop (MATLAB: 3*M*N:-1:2) ---
+    D[1:] = (C[1:] - C[:-1] - S2[1:]) % 256
+    # 处理边界 D(1)
+    D[0] = (C[0] - S2[0]) % 256
+    
+    # --- E Loop (MATLAB: 1:3*M*N-1) ---
+    E[:-1] = (D[:-1] - D[1:] - S1[:-1]) % 256
+    # 处理边界 E(end)
+    E[-1] = (D[-1] - S1[-1]) % 256
+    
+    
+    I1_flat = E[0::3] # 取出所有 R
+    I2_flat = E[1::3] # 取出所有 G
+    I3_flat = E[2::3] # 取出所有 B
+    
+    I1 = I1_flat.reshape((M, N), order='F')
+    I2 = I2_flat.reshape((M, N), order='F')
+    I3 = I3_flat.reshape((M, N), order='F')
+
+    t = np.gcd(M, N)
+    Min = min(M, N)
+    
+    for i in range(M - t, -1, -t):
+        for j in range(N - t, -1, -t):
+            wi = int(np.floor(RR[i, j] * M)) + 1
+            wj = int(np.floor(RG[i, j] * N)) + 1
+            wy = int(np.floor(RB[i, j] * Min)) + 1
+            
+            TL = np.concatenate([I1[:, wj], I2[:, wj], I3[:, wj]])
+            I1[:, wj] = TL[wy : M + wy].copy()
+            I2[:, wj] = TL[M + wy : 2*M + wy].copy()
+            part1 = TL[2*M + wy :].copy()
+            part2 = TL[0 : wy].copy()
+            I3[:, wj] = np.concatenate([part1, part2])
+            
+            TH = np.concatenate([I1[wi, :], I2[wi, :], I3[wi, :]])
+            I1[wi, :] = TH[wy : N + wy].copy()
+            I2[wi, :] = TH[N + wy : 2*N + wy].copy()
+            part1_row = TH[2*N + wy :].copy()
+            part2_row = TH[0 : wy].copy()
+            I3[wi, :] = np.concatenate([part1_row, part2_row])
+
+    image_de = np.stack([I1, I2, I3], axis=2).astype(np.uint8)
+    return image_de

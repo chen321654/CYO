@@ -24,38 +24,16 @@ def get_p_and_q(Sum: int, p1: float, q1: float):
     q = np.abs(q)
     return p, q
 
+def get_R_matrix(W: int, M: int, p1: float, q1: float):
+    Sum = W * M
+    p, q = get_p_and_q(Sum, p1, q1)
 
-def getx_y(dot, Max, x1, y1):
-    size = dot + Max * 3 + 5
-    x = np.zeros(size)
-    y = np.zeros(size)
-    x[0] = x1
-    y[0] = y1
-    a = 0.6
-    k = 0.8
-    for n in range(dot + Max * 3):
-        x[n + 1] = np.sin(21 * 1.0 / (a * (y[n] + 3) * k * x[n] * (1 - k * x[n])))
-        y[n + 1] = np.sin(21 * 1.0 / (a * (k * x[n + 1] + 3) * y[n] * (1 - y[n])))
-    x[:dot] = (x[:dot] + 1) / 2
-    y[:dot] = (y[:dot] + 1) / 2
-    return x, y  # 返回完整数组，不截断
+    q1 = q[:Sum]
+    q2 = q[Sum: 2*Sum]
+    q3 = q[2*Sum: len(p)]
 
-def getk1_k2(x, y, dot, left, right, top, bottom, mark):
-    H = bottom - top
-    W = right - left
-    Max_1 = max(right, left)
-    Max_2 = max(top, bottom)
-    Max_3 = max(Max_1, Max_2)
-    Max = max(H, W)
-    Min = min(H, W)
-    k1 = np.zeros(Max_3, dtype=np.int32)
-    k2 = np.zeros(Max_3, dtype=np.int32)
-    for n in range(Max_3):
-        k1_value = x[dot - (Max_3 - n)] * 1000
-        k2_value = y[dot - (Max_3 - n)] * 1000
-        k1[n] = int(np.floor(k1_value)) % Max
-        k2[n] = int(np.floor(k2_value)) % Min
-    if mark:
-        for n in range(Max_3):
-            k2[n] = int(np.floor(y[dot - (Max_3 - n)] * 1000)) % Max
-    return k1, k2
+    RR = np.reshape(q1, (W, M), order='F').T
+    RG = np.reshape(q2, (W, M), order='F').T
+    RB = np.reshape(q3, (W, M), order='F').T
+
+    return RR, RG, RB, p, q
