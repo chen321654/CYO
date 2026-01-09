@@ -2,9 +2,10 @@ import torch
 import torch.nn as nn
 import cv2 as cv
 from cyo.utils.general import non_max_suppression, scale_boxes
-import sys
 import onnxruntime as ort
 import numpy as np
+import logging
+
 
 class YOLOEngine:
     def __init__(self, model_path):
@@ -42,16 +43,20 @@ class YOLOEngine:
         pred = outputs[0]
         pred_tensor = torch.from_numpy(pred)
 
-        if pred_tensor.max() > 1.5 or pred_tensor.min() < -0.1:
-            pred_tensor = torch.sigmoid(pred_tensor)
+        # if pred_tensor.max() > 1.5 or pred_tensor.min() < -0.1:
+        #     pred_tensor = torch.sigmoid(pred_tensor)
 
         if len(pred_tensor.shape) == 3 and pred_tensor.shape[2] > pred_tensor.shape[1]:
             pred_tensor = pred_tensor.transpose(1, 2)
         
-        if pred_tensor[..., :4].max() < 2.0:
-            print("检测到归一化坐标，正在转换为像素坐标...")
-            # 将 xywh 乘以 img_size (例如 640)
-            pred_tensor[..., :4] *= img_size
+        # if pred_tensor[..., :4].max() < 2.0:
+        #     print("检测到归一化坐标，正在转换为像素坐标...")
+        #     # 将 xywh 乘以 img_size (例如 640)
+        #     pred_tensor[..., :4] *= img_size
+
+        logging.info(f"Shape before NMS: {pred_tensor.shape}")
+        logging.info(f"Max value in coords: {pred_tensor[..., :4].max().item()}")
+        logging.info(f"Max value in scores: {pred_tensor[..., 4:].max().item()}")
 
         results = non_max_suppression(pred_tensor, conf_thres, iou_thres, max_det=max_det)
 

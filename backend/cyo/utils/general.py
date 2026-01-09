@@ -98,17 +98,26 @@ def non_max_suppression(
     return output
 
 def scale_boxes(img1_shape, boxes, img0_shape):
-    """将坐标从推理尺寸 (img1) 缩放到原图尺寸 (img0)"""
-    gain = min(img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1])
-    pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2
-
-    boxes[:, [0, 2]] -= pad[0]  # x 填充偏移
-    boxes[:, [1, 3]] -= pad[1]  # y 填充偏移
-    boxes[:, :4] /= gain
+    """
+    专门适配 cv.resize (暴力拉伸) 的坐标还原函数
+    img1_shape: 推理尺寸 (例如 640, 640)
+    img0_shape: 原图尺寸 (例如 1080, 1920) (h, w)
+    """
+    # 1. 计算简单的拉伸比例
+    # img1_shape 通常是 (h, w), 这里假设是 (640, 640)
+    # 注意：opencv resize 是 (width, height)，但 shape 是 (height, width)
     
-    # 裁剪越界部分
+    gain_y = img0_shape[0] / img1_shape[0]  # 高度缩放比例
+    gain_x = img0_shape[1] / img1_shape[1]  # 宽度缩放比例
+
+    # 2. 独立缩放 x 和 y
+    boxes[:, [0, 2]] *= gain_x  # x1, x2 乘以 宽度比例
+    boxes[:, [1, 3]] *= gain_y  # y1, y2 乘以 高度比例
+
+    # 3. 裁剪越界部分
     boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, img0_shape[1])
     boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(0, img0_shape[0])
+    
     return boxes
 
 def check_img_size(imgsz, s=32):
