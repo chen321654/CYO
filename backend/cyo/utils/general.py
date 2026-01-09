@@ -35,8 +35,8 @@ def non_max_suppression(
     """
     # 针对 YOLOv9 ONNX 导出的维度修正
     # 如果形状是 [1, 84, 8400]，需要转置为 [1, 8400, 84]
-    if prediction.shape[2] > prediction.shape[1]:
-        prediction = prediction.transpose(1, 2)
+    # if prediction.shape[2] > prediction.shape[1]:
+    #     prediction = prediction.transpose(1, 2)
 
     bs = prediction.shape[0]  # batch size
     nc = prediction.shape[2] - nm - 4  # 类别数量
